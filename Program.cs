@@ -12,6 +12,7 @@ class Program
         string ProcessCode = "";
         string CompanyCode = "";
         bool taxincludes = false;
+        string orig_address; string orig_city; string orig_region; string orig_postal; string orig_country;
         ConsoleKeyInfo keypress; // ready the variable used for accepting user input
 
         Console.WriteLine("Instructions");
@@ -27,7 +28,18 @@ class Program
             keypress = Console.ReadKey(true); //This is listed with true so the key press is not shown.
             if (keypress.Key == ConsoleKey.I)
             {
-                ConvertExport(ProcessCode, CompanyCode, taxincludes);
+                Console.WriteLine("The origin address is required, but not part of the data file.");
+                Console.WriteLine("Enter the origin street address as one line:");
+                orig_address = Console.ReadLine();
+                Console.WriteLine("Enter the origin city:");
+                orig_city = Console.ReadLine();
+                Console.WriteLine("Enter the origin state:");
+                orig_region = Console.ReadLine();
+                Console.WriteLine("Enter the origin zip code:");
+                orig_postal = Console.ReadLine();
+                Console.WriteLine("Enter the origin country:");
+                orig_country = Console.ReadLine();
+                ConvertExport(ProcessCode, CompanyCode, taxincludes, orig_address, orig_city, orig_region, orig_postal, orig_country);
             }
             if (keypress.Key == ConsoleKey.P)
             {
@@ -56,7 +68,7 @@ class Program
         }
     }
 
-    static void ConvertExport(string ProcessCode, string CompanyCode, bool taxincludes)
+    static void ConvertExport(string ProcessCode, string CompanyCode, bool taxincludes, string orig_address, string orig_city, string orig_region, string orig_postal, string orig_country)
     {
         int lineCount = File.ReadAllLines("data.csv").Length;
         Console.WriteLine("Processing " + lineCount + " lines.");
@@ -68,7 +80,6 @@ class Program
         string[] fields;
         int row = 0;
         int column = 0;
-        bool taxdateoverride = false;
         double line_amount;
         double tax_amount;
         string ti_string;
@@ -81,13 +92,13 @@ class Program
                 //data[row, column] = field;
                 switch (column)
                 {
-                    case 0:
+                    case 1: // The second column of the data file is not used, so we use this step to handle the ProcessCode.
                         if (ProcessCode != "")
                         { data[row, 0] = ProcessCode; }
                         else
                         { data[row, 0] = "4"; } // This will set the process code to 4.
                         break;
-                    case 1:
+                    case 28:
                         if (CompanyCode == "")
                         { data[row, 4] = field; }
                         else
@@ -98,81 +109,65 @@ class Program
                             { data[row, 4] = "\"" + CompanyCode + "\""; }
                         }
                         break;
-                    case 3:
-                        data[row, 1] = "\"" + field + "\"";
+                    case 0:
+                        data[row, 1] = "\"" + field + "\""; // This will set the DocCode
                         break;
-                    case 4:
-                        if (field == "Sales Invoice")
-                        { data[row, 2] = "1"; }
-                        else if (field == "Return Invoice")
-                        {
-                            data[row, 2] = "5";
-                            taxdateoverride = true;
-                        }
-                        else { data[row, 2] = field; }
+                    case 3: // The fourth column of the data file is not used, so we use this step to handle the DocType.
+                        data[row, 2] = "1"; // This sets the DocType to 1
                         break;
-                    case 5:
-                        data[row, 3] = field;
+                    case 2:
+                        data[row, 3] = field; // This sets the DocDate
                         break;
-                    case 6:
-                        if (taxdateoverride)
-                        {
-                            data[row, 9] = field; // This will set the date override date to the date used in the original, but only for return invoices.
-                            taxdateoverride = false;
-                        }
-                        break;
-                    case 11:
-                        data[row, 32] = field;
-                        break;
+                    /*case 11:
+                        data[row, 32] = field; // Currency?
+                        break;*/
                     case 12:
-                        data[row, 5] = "\"" + field + "\"";
+                        data[row, 5] = "\"" + field + "\""; // CustomerCode
                         break;
-                    case 13:
-                        data[row, 6] = field;
-                        break;
+                    /*case 5:
+                        data[row, 6] = field; // Entity Use/Code
+                        break;*/
                     case 14:
-                        data[row, 17] = field;
+                        data[row, 17] = field; // Exemption number
                         break;
-                    case 15:
-                        data[row, 31] = field;
+                    /*case 15:
+                        data[row, 31] = field; // Purchase order?
                         break;
                     case 17:
-                        data[row, 30] = field;
+                        data[row, 30] = field; // Sales person?
                         break;
                     case 18:
-                        data[row, 29] = field;
+                        data[row, 29] = field; // Location code?
+                        break;*/
+                    case 5: // Line number
+                        data[row, 7] = field.Substring(15); // Using .Substring I am hacking off about half of the unique identifier Zuora uses for lines, since AvaTax doesn't support that many characters for the line number.
                         break;
-                    case 19:
-                        data[row, 7] = field;
+                    case 11:
+                        data[row, 10] = field; // ItemCode
+                        data[row, 8] = field; // TaxCode
                         break;
-                    case 20:
-                        data[row, 10] = field;
+                    /*case 21:
+                        data[row, 11] = "\"" + field + "\""; // Item description
+                        break;*/
+                    case 7:
+                        data[row, 12] = field; // Quantity
                         break;
-                    case 21:
-                        data[row, 11] = "\"" + field + "\"";
-                        break;
-                    case 22:
-                        data[row, 8] = field;
-                        break;
-                    case 25:
-                        data[row, 12] = field;
-                        break;
-                    case 26:
+                    case 6:
                         data[row, 13] = field; // This will copy the line amount.
                         break;
-                    case 27:
-                        data[row, 14] = field;
+                    /*case 27:
+                        data[row, 14] = field; // Discount
                         break;
                     case 28:
-                        data[row, 15] = field;
+                        data[row, 15] = field; // Ref1
                         break;
                     case 29:
-                        data[row, 16] = field;
+                        data[row, 16] = field; // Ref2
                         break;
                     case 30:
-                        data[row, 18] = field;
-                        break;
-                    case 34:
+                        data[row, 18] = field; // RevAcct
+                        break;*/
+                    case 8:
                         data[row, 41] = field; // This will copy the tax amount.
                         if (taxincludes && row != 0) // This looks for the tax includes flag, which can be set by the app user, and it skips the header row.
                         {
@@ -185,34 +180,34 @@ class Program
                         }
                         break;
                     case 39:
-                        data[row, 24] = "\"" + field + "\"";
+                        data[row, 24] = "\"" + orig_address + "\""; // Origin Address
                         break;
                     case 40:
-                        data[row, 25] = "\"" + field + "\"";
+                        data[row, 25] = "\"" + orig_city + "\""; // Origin City
                         break;
                     case 41:
-                        data[row, 26] = field;
+                        data[row, 26] = orig_region; // Origin Region
                         break;
                     case 42:
-                        data[row, 28] = field;
+                        data[row, 28] = orig_country; // Origin Country
                         break;
                     case 43:
-                        data[row, 27] = "\"" + field + "\"";
+                        data[row, 27] = "\"" + orig_postal + "\""; // Origin Postal
                         break;
-                    case 45:
-                        data[row, 19] = "\"" + field + "\"";
+                    case 21:
+                        data[row, 19] = "\"" + field + "\""; // Dest Address
                         break;
-                    case 46:
-                        data[row, 20] = "\"" + field + "\"";
+                    case 23:
+                        data[row, 20] = "\"" + field + "\""; // Dest City
                         break;
-                    case 47:
-                        data[row, 21] = field;
+                    case 27:
+                        data[row, 21] = field; // Dest Region
                         break;
-                    case 48:
-                        data[row, 23] = field;
+                    case 24:
+                        data[row, 23] = field; // Dest Country
                         break;
-                    case 49:
-                        data[row, 22] = "\"" + field + "\"";
+                    case 26:
+                        data[row, 22] = "\"" + handlezip(field) + "\""; // Dest Postal
                         break;
                 }
                 column = column + 1;
@@ -271,6 +266,15 @@ class Program
             Console.WriteLine("Exception: " + e.Message);
         }
         Console.WriteLine("Done.");
+    }
+
+    static string handlezip(string zip)
+    {
+        while (zip.Length < 4)
+        {
+            zip = "0" + zip;
+        }
+        return zip;
     }
 }
 
